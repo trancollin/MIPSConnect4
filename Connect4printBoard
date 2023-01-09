@@ -1,0 +1,49 @@
+.globl printBoard
+
+#The function prints out the game board with '|' separating every space
+#$t0 is used as the row index
+#$t1 is used as the column index
+#$t3 is used to hold 'address' as shown in the formula at the top of the program
+#$t4 is used to hold the character at the specified indexes
+printBoard:
+	li $t0, 0	#set row index to 0
+	li $t1, 0	#set column index to 0
+	
+	printLoop1:
+		beq $t0, $s1, printLoop1Exit	#exits the loop once all rows have been traversed
+		#print initial bar
+		li $v0, 4
+		la $a0, bar
+		syscall
+		printLoop2:
+			beq $t1, $s2, printLoop2Exit	#exits the loop once the current row has been traversed
+			mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+			add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+			mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+			add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+			
+			#print the character at board[$t0][$t1]
+			li $v0, 11
+			lb $a0, ($t3)
+			syscall
+			
+			#print a space after the character
+			li $v0, 4
+			la $a0, bar
+			syscall
+			
+			addi $t1, $t1, 1	#increment the column index
+			#blt $t1, $s2, printLoop2
+			j printLoop2	#jump to printLoop2
+			
+		printLoop2Exit:
+		addi $t0, $t0, 1	#increment row index
+		li $t1, 0	#reset col index
+		
+		#print newline
+		li $v0, 4
+		la $a0, newLine
+		syscall
+		j printLoop1	#jump to printLoop1
+	printLoop1Exit:
+jr $ra

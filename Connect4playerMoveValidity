@@ -1,0 +1,103 @@
+.globl playerMoveValidity
+
+#The function places the player's piece on the board based on their input
+#Just like in Connect 4, pieces are placed at the lowest available space in the specified column
+#If the player chooses an invalid location, an error message is sent, and they are prompted to choose another 
+	#First, the input is checked to see if it only contains numbers
+		#If it does, continue
+		#If it doesn't, ask the player for another input
+	#Then, input is checked to see if it's within the specified range
+		#If not, the player is prompted to enter another number
+		#If so, the column specified is checked to see if it is full
+			#If not, the player must enter another number, and it's range and column fullness must be rechecked
+			#If so, place it in the board
+#If the column isn't full, place the piece at the bottommost available position in the specified column
+playerMoveValidity:
+	#check to see if the string only has numbers in it
+	la $t0, number	#load number string into $t0
+	li $t1, 0	#string index
+	
+	loop1:
+		add $t2, $t0, $t1	#increments the string index
+		lb $t3, 0($t2)	#load char at string index
+		beq $t3, 10, endOfString	#if char at string index is \n, it is the end of the string
+		blt $t3, 48, invalidString	#if char at string index is less than 0 (ascii), then it isn't a number
+		bgt $t3, 57, invalidString	#if char at string index is greater than 9 (ascii), then it isn't a number
+		addi $t1, $t1, 1	#increment string index
+		j loop1
+	
+	#string is invalid, return 0
+	invalidString:
+		#print input error message
+		li $v0, 4
+		la $a0, inputError
+		syscall
+		#return 0, return to main
+		li $v0, 0
+		jr $ra
+	
+	#string contains only integers, or the string is empty
+	endOfString:
+	#if the string is empty, it's invalid, return 0
+	bne $t1, $zero, stringValid
+	#print input error message
+	li $v0, 4
+	la $a0, inputError
+	syscall
+	#return 0, return to main
+	li $v0, 0
+	jr $ra
+	
+	#the string contains only integers, convert it into an integer
+	stringValid:
+	li $t1, 0	#reset string index to 0
+	li $t4, 0	#temp
+	li $a1, 0	#accumulator
+	
+	loop2:
+		add $t2, $t0, $t1	#increments the string index
+		lb $t3, 0($t2)	#load char at string index
+		beq $t3, 10, endOfString2	#if char at string index is \n, it is the end of the string
+		#math to convert string to integer
+		addi $t3, $t3, -48
+		mul $t4, $a1, 10
+		add $a1, $t4, $t3
+		addi $t1, $t1, 1	#increment string index
+		j loop2
+	
+	endOfString2:
+
+	#tests to see if the player's input is within the specified range
+	blt $a1, $zero, outOfRange	#if less than 0, it is out of range
+	li $t0, 6
+	bgt $a1, $t0, outOfRange	#if it is greater than 6, it is out of range
+	j inRange	#if the player's input is in the specified range, jump to 'inRange'
+	
+	#the player's input is out of range, tell them, return 0
+	outOfRange:	
+		#print range error message
+		li $v0, 4
+		la $a0, rangeError
+		syscall
+		#return 0, return to main
+		li $v0, 0
+		jr $ra
+	
+	#the input is within range, check the top of the specified column for emptiness
+	#if the top is empty, the column has room available
+	#if the top if filled, return 0
+	inRange:	
+		lb $t0, board($a1)	#load the character at the top of the specified column into $t0
+		beq $t0, $s5, columnAvailable	#if the top of the column is empty, it is available
+		
+		#column is full, tell the player so, return 0
+		li $v0, 4
+		la $a0, columnFull
+		syscall
+		li $v0, 0
+		jr $ra
+		
+	#column is available, return 1, return to main
+	columnAvailable:
+		li $v0, 1	
+		jr $ra

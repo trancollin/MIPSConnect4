@@ -1,0 +1,232 @@
+.globl checkConnected
+
+#The function checks if 4 pieces are connected.
+#Since 4 pieces can only be connected after either the player's or computer's turn, we only need to use a freshly placed pience to check for connectivity.
+#Checks for connectivity after either the player's or computer's turn using the row and column indexes of the pieces either of them just placed.
+	#$s6 and $s7 are used for this
+#First check for vertical match, then horizontal match, then diagonal matches.
+#A value of 1 is returned if a match is found, 0 if not
+#Vertical matches check if the top four pieces of a specified column are the same.
+	#The loop doesn't run if there aren't four pieces in a column
+	#Checks from the topmost piece of the specified column to the three pieces below it
+	#If all of them are the same (current player's piece), there is a vertical match, return 1
+	#If not, skip to horizontal test
+#Horizontal matches check if four sequential pieces in the specified row are the same
+	#Starts from the left of the row(col index 0), checks if the first four pieces are the same
+	#If not, increment col index and restart
+	#Continues until a match is found or col index > 3 (equal to col index + 3 > 6)
+#The first diagaonal match starts from the bottom left
+	#From the specified row and col indexes, the function increments the row index and decrements the col index unitl an edge of the board has been reached
+	#The function then checks if the first 4 pieces going diagonally right are the same
+		#If so, there is a match
+		#If not, there isn't a match
+	#If not match, the row index is decremented and the col index is incremented, and the check starts again
+	#This continues until the last piece checked is at the edge of the board
+#The second diagonal match functions the same as the first, but it moves from the bottom right to the top left instead
+checkConnected:
+	move $t0, $s6	#set $t0 to saved row index
+	move $t1, $s7	#set $t1 to saved column index
+	
+	bne $a2, $zero, setCompPiece2	#if it isn't the player's turn, set the piece to be placed to the computer's piece
+	lb $t2, playerPiece	#set playerPiece
+	j verticalTest
+	
+	setCompPiece2:
+	lb $t2, compPiece	#set compPiece
+	
+	#check vertical connectivity
+	verticalTest:
+	li $t3, 2	#minimum row index for a vertical match to be possible is 2
+	bgt $t0, $t3, skipVertical #if the row index is greater than 2, a vertical match isn't possible
+	li $t5, 3	#counter for loop
+	
+	verticalLoop:
+		blt $t5, $zero, connectionFound	#if 4 sequential pieces are the same, there is a match
+		#check piece at board[$t0][$t1]
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipVertical	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		addi $t0, $t0, 1	#increment row index
+		addi $t5, $t5, -1	#decrement counter
+		j verticalLoop
+	
+	#a vertical match wasn't found or it is impossible for it to occur
+	skipVertical:
+	
+	#test for a horizontal match in the specified row
+	move $t0, $s6	#set $t0 to saved row index
+	li $t1, 0	#set col index to 0
+	li $t5, 3	#load 3 into $t5, to be used as limit in outer loop
+	move $t7, $zero	#temp value for col index
+	
+	horizontalLoop1:
+	bgt $t1, $t5, horizontalLoop1Exit	#if no match has been found, exit horizontalLoop1
+		li $t6, 3	#load 3 into $t6, to be used as counter in inner loop
+		horizontalLoop2:
+			blt $t6, $zero, connectionFound	#if 4 sequential pieces in the row are the same, a connection has been found
+			mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+			add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+			mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+			add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+			lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+			bne $t2, $t4, horizontalLoop2Exit	#if piece at board[$t0][$t1] doesn't equal current player piece, exit horizontalLoop2
+			addi $t6, $t6, -1	#decrement counter
+			addi $t1, $t1, 1	#increment col index
+			j horizontalLoop2
+		horizontalLoop2Exit:
+		move $t1, $t7	#reset col index to value before horizontalLoop2
+		addi $t1, $t1, 1	#increment col index by 1
+		move $t7, $t1	#set $t7 to incremented col index
+		j horizontalLoop1
+	
+	horizontalLoop1Exit:
+	
+	#check for first diagonal condition
+	#this section uses nested if statements inside a loop
+	move $t0, $s6	#set $t0 to saved row index
+	move $t1, $s7	#set $t1 to saved col index
+	
+	#move down and left until an edge of the board has been reached
+	li $t5, 5	#represents bottom of board
+	
+	#traverse down and left from the original row and col index until one of the edges of the board has been reached
+	moveDownLeft:
+	beq $t0, $t5, moveDownLeftExit
+	beq $t1, $zero moveDownLeftExit
+	addi $t0, $t0, 1	#increment row index by 1
+	addi $t1, $t1, -1	#decrement col index by 1
+	j moveDownLeft
+	
+	moveDownLeftExit:
+	
+	#check for diagonal match 
+	move $t5, $t0	#temp holder for row index
+	move $t6, $t1	#temp holder for col index
+	diagonalCheck1Loop:
+		blt $t0, 3, diagonalCheck1LoopExit
+		bgt $t1, 3, diagonalCheck1LoopExit
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal1	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		addi $t0, $t0, -1	#decrement $t0
+		addi $t1, $t1, 1	#increment $t1
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal1	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		addi $t0, $t0, -1	#decrement $t0
+		addi $t1, $t1, 1	#increment $t1
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal1	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		addi $t0, $t0, -1	#decrement $t0
+		addi $t1, $t1, 1	#increment $t1
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal1	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		j connectionFound	#connection has been found
+		
+		skipDiagonal1:
+		addi $t5, $t5, -1	#decrement row index holder
+		addi $t6, $t6, 1	#increment col index holder
+		move $t0, $t5	#set new row index
+		move $t1, $t6	#set new col index
+		j diagonalCheck1Loop	#reloop
+		
+	diagonalCheck1LoopExit:
+
+	#check for second diagonal condition
+	#this section uses nested if statements inside a loop
+	move $t0, $s6	#set $t0 to saved row index
+	move $t1, $s7	#set $t1 to saved col index
+	
+	moveDownRight:
+	beq $t0, 5, moveDownRightExit
+	beq $t1, 6 moveDownRightExit
+	addi $t0, $t0, 1	#increment row index by 1
+	addi $t1, $t1, 1	#increment col index by 1
+	j moveDownRight
+	
+	moveDownRightExit:
+	
+	#check for diagonal match 
+	move $t5, $t0	#temp holder for row index
+	move $t6, $t1	#temp holder for col index
+	diagonalCheck2Loop:
+		blt $t0, 3, diagonalCheck2LoopExit
+		blt $t1, 3, diagonalCheck2LoopExit
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal2	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		addi $t0, $t0, -1	#decrement $t0
+		addi $t1, $t1, -1	#decrement $t1
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal2	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		addi $t0, $t0, -1	#decrement $t0
+		addi $t1, $t1, -1	#decrement $t1
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal2	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		addi $t0, $t0, -1	#decrement $t0
+		addi $t1, $t1, -1	#decrement $t1
+		
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		bne $t2, $t4, skipDiagonal2	#if board[$t0][$t1] doesn't equal the current player's piece, there is no vertical match
+		j connectionFound	#connection has been found
+		
+		skipDiagonal2:
+		addi $t5, $t5, -1	#decrement row index holder
+		addi $t6, $t6, -1	#increment col index holder
+		move $t0, $t5	#set new row index
+		move $t1, $t6	#set new col index
+		j diagonalCheck2Loop	#reloop
+		
+	diagonalCheck2LoopExit:
+	
+
+	#there was no match, return 0
+	li $v0, 0
+	jr $ra
+	
+	#a match has been found, return 1
+	connectionFound:
+	li $v0, 1
+	jr $ra
+	
+
+	

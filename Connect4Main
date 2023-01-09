@@ -1,0 +1,142 @@
+.globl main
+
+#This program is a recreation of Connect 4 in MIPS
+#A 2d array is used to represent the game board
+#Empty spaces are represented using an '_', player spaces are represented using 'Y', and computer spaces are represented using 'N'
+#The equation address = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE is used to traverse through the 2d array	
+	.data
+board: 	.byte '_', '_', '_', '_', '_', '_', '_' 	#2d array used as the game board, initialized with underscores to represent an empty game board
+	.byte '_', '_', '_', '_', '_', '_', '_' 
+	.byte '_', '_', '_', '_', '_', '_', '_' 
+	.byte '_', '_', '_', '_', '_', '_', '_' 
+	.byte '_', '_', '_', '_', '_', '_', '_' 
+	.byte '_', '_', '_', '_', '_', '_', '_' 
+
+#Board variables
+number:	.space 100
+colSize:	.word 6	#column size
+rowSize:	.word 7	#row size
+		.eqv DATASIZE 1	#size of data
+playerPiece:	.byte 'Y'
+compPiece:	.byte 'R'
+empty:	.byte '_'
+
+#Strings
+bar:	.asciiz "|"
+newLine:	.asciiz  "\n"
+start1: .asciiz "Welcome to Connect 4!\n"
+start2: .asciiz "Your pieces are represented by \"Y\".\n"
+start3: .asciiz "The computer's pieces are represented by \"R\".\n"
+start4: .asciiz "Connect 4 of your pieces to win the game!\n"
+start5:	.asciiz "If the board is completely filled before anyone wins, the game is a draw!\n"
+playerPrompt:	.asciiz "\nPick a column(0 - 6, with 0 being the leftmost column and 6 being the rightmost column) to place your piece: "
+compPrompt: .asciiz "\nComputer's move:\n"
+rangeError:	.asciiz "\nYour input is outside the specified range."
+inputError:	.asciiz "\nYour input should only contain numbers."
+columnFull:	.asciiz "\nThe column you selected is full."
+GO1:	.asciiz "\nYou win!"
+GO2: 	.asciiz "\nThe computer wins!"
+GO3:	.asciiz "Draw!"
+
+	.text
+main:
+	la $s0, board	#the address of board is loaded into $s0
+	lw $s1, colSize	#colSize is loaded into $s1
+	lw $s2, rowSize #rowSize is loaded into $s2
+	lb $s3, playerPiece	#playerPiece is loaded into $s3
+	lb $s4, compPiece	#compPiece is loaded into $s4
+	lb $s5, empty	#empty is loaded into $s5
+	
+	#print the start strings
+	li $v0, 4
+	la $a0, start1
+	syscall
+	la $a0, start2
+	syscall
+	la $a0, start3
+	syscall
+	la $a0, start4
+	syscall
+	la $a0, start5
+	syscall
+	
+	jal printBoard	#print the game board
+	
+	validityCheck1:
+		#prompt player to place a piece
+		li $v0, 4
+		la $a0, playerPrompt
+		syscall
+	
+		#read player input
+		li $v0, 8
+		la $a0, number
+		li $a1, 100
+		syscall
+		
+		jal playerMoveValidity	#check if the player's move is valid
+		beq $v0, $zero, validityCheck1	#if the player's move is invalid, tell them so, then prompt them for another input
+	
+	#the player's input is completely valid, place their piece on the board
+	li $a2, 0	#loads 0 into $a2, signaling to placePiece that it's the player's turn
+	jal placePiece	#place piece
+	jal printBoard	#reprint game board
+	jal checkConnected	#check connectivity
+	bne $v0, $zero, win	#if a match was found, jump to win
+	
+	jal compMoveValidity	#generate the computer's move
+	li $a2, 1	#set $a2 to 1, signaling to placepeice that it's the computer's turn
+	
+	#print computer's turn prompt
+	li $v0, 4
+	la $a0, compPrompt
+	syscall
+	
+	jal placePiece	#place peice
+	jal printBoard	#reprint game board
+	jal checkConnected	#check connectivity
+	bne $v0, $zero, win	#if a match was found, jump to win
+	
+	jal checkBoardFull	#check if the game board has been filled
+	
+	beq $v0, $zero, validityCheck1	#if the game board isn't full, reloop
+	j draw
+	
+	#the game is a draw, tell the player so, end the game
+	draw:
+	li $v0, 4
+	la $a0, GO3
+	syscall 
+	j end
+
+	#sommeone has won the game, print who won and end the game
+	win:
+	bne $a2, $zero, compWin	#if it wasn't the player's turn, the computer put down the winning piece
+	#print the player won the game, end the game
+	li $v0, 4
+	la $a0, GO1	#load player victory string
+	syscall
+	j end
+	
+	compWin:
+	#print the computer won the game, end the game
+	li $v0, 4
+	la $a0, GO2	#load computer victory string
+	syscall
+	
+	#end of main
+	end:
+	li $v0, 10
+	syscall
+
+#include statements
+.include "Connect4printBoard"
+.include "Connect4playerMoveValidity"
+.include "Connect4placePiece"
+.include "Connect4checkBoardFull"
+.include "Connect4compMoveValidity"
+.include "Connect4checkConnected"
+
+
+
+	

@@ -1,0 +1,40 @@
+.globl compMoveValidity
+
+#The function generates a random integer from 0 - 6, representing a column
+#If the column has space available return to main
+#Otherwise, generate another integer and repeat
+	#This repeats up to 5 times, if an integer isn't found, place the piece in the first available column from the right
+compMoveValidity:
+	li $t1, 0	#t1 is used to count the number of random integers generated
+	li $t2, 5	#Up to 5 numbers to be randomly generated to avoid infinte loops
+	compMoveValidityLoop:
+		beq $t1, $t2, compMoveValidityLoopExit2
+		li $a1, 7	#set max bound of random integer
+		li $v0, 42	#generate random int
+		syscall
+		bge $a0, $s2, compMoveValidityLoop
+		
+		lb $t0, board($a0)	#load the top char of the random column into $t0
+		beq $t0, $s5, compMoveValidityLoopExit1	#if the column is available exit the loop
+		addi $t1, $t1, 1	#increment $t1
+		j compMoveValidityLoop	#find another integer
+	
+	#an available column was found
+	compMoveValidityLoopExit1:
+	move $a1, $a0	#move the random int in $a0 to $a1
+	jr $ra
+	
+	#no available column was found within 5 iterations of the loop
+	compMoveValidityLoopExit2:
+	li $t0, 6	#set column index to the rightmost column
+	li $t1, 0
+	
+	compMoveValidityLoop2:
+		lb $t1, board($t0)	#load the top char of the column specified by $t0
+		beq $t1, $s5, compMoveValidityLoop2Exit	#if the column is available exit the loop
+		addi $t0, $t0, -1	#if the column isn't available, decrement the column index, reloop
+		j compMoveValidityLoop2
+	
+	compMoveValidityLoop2Exit:
+	move $a1, $t0	#set $a1 to the column index found
+	jr $ra

@@ -1,0 +1,27 @@
+.globl checkBoardFull
+
+#The function checks if the board has been completely filled
+#Only needs to be checked after both the player and the computer place a piece
+#If the top row of the board is completely filled, the board is full
+#$t1 is used at the column index
+#If the board isn't full, return 0
+#If the board is full, return 1
+checkBoardFull:
+	move $t0, $zero	#sets row index to 0
+	move $t1, $zero	#sets col index to 0
+	checkBoardFullLoop1:
+		beq $t1, $s2, boardFull	#if the top row has been traversed and no empty spaces were found, the board is full
+		lb $t0, board($t1)	#load the char at board[0][$t1] into $t0
+		beq $t0, $s5, boardNotFull	#if an empty space is found, the board isn't full
+		addi $t1, $t1, 1	#increment column index
+		j checkBoardFullLoop1	#reloop
+	
+	#board full, return 1
+	boardFull:
+	li $v0, 1
+	jr $ra
+	
+	#board not full, return 0
+	boardNotFull:
+	li $v0, 0
+	jr $ra

@@ -1,0 +1,40 @@
+.globl placePiece
+
+#The function places a piece in the specified column
+#The function can place either the player's piece or the computer's piece, which is decided by what value is in $a2
+	#if $a2 = 0, the player's peice is placed
+	#if $a2 = 1, the computer's piece is placed 
+#Pieces are placed at the bottommost space available in the specified column
+#$t0 is used as the row index
+#$t1 is used as the column index
+#The function also saves the row and column indexes to registers $s6 and $s7
+	#$s6 is the saved row index while $s7 is the saved column index
+placePiece:
+	li $t0, 5	#set row index to 5, the bottom of the board
+	move $t1, $a1	#set column index to value in $a1
+	
+	bne $a2, $zero, setCompPiece	#if it isn't the player's turn, set the piece to be placed to the computer's piece
+	lb $t2, playerPiece	#set playerPiece
+	j placePieceLoop1
+	
+	setCompPiece:
+	lb $t2, compPiece	#set compPiece
+	
+	placePieceLoop1:
+		#blt $t0, $zero, placePieceLoop1Exit
+		mul $t3, $t0, $s2	#$t3 = rowIndex * rowSize
+		add $t3, $t3, $t1	#$t3 = rowIndex * rowSize + colIndex
+		mul $t3, $t3, DATASIZE	#$t3 = (rowIndex * rowSize + colIndex) * DATASIZE
+		add $t3, $t3, $s0	#$t3 = baseAddress + (rowIndex * rowSize + colIndex) * DATASIZE
+		lb $t4, ($t3)	#load character at board[$t0][$t1] into $t4
+		
+		beq $t4, $s5, placePieceLoop1Exit	#if the space is empty, exit the loop
+		#otherwise, decrement row index, reloop
+		addi $t0, $t0, -1
+		j placePieceLoop1
+	
+	placePieceLoop1Exit:
+	move $s6, $t0	#save the row index of the piece placed
+	move $s7, $t1	#save the column index of the piece placed
+	sb $t2, ($t3)	#if space is empty, store char, exit loop
+	jr $ra
